@@ -16,7 +16,8 @@
 #
 # Required env vars (set whichever models you want to run):
 #   OPENAI_API_KEY        — for gpt5
-#   OPENROUTER_API_KEY    — for gemini
+#   GEMINI_API_KEY        — for gemini (direct Google AI Studio, preferred)
+#   OPENROUTER_API_KEY    — for gemini fallback (used only if GEMINI_API_KEY is unset)
 #   MOONSHOT_API_KEY      — for kimi
 #
 # Optional env vars:
@@ -24,6 +25,7 @@
 #   CONSENSUS_MAX_TOKENS  — per-model token budget (default: 16000)
 #   CONSENSUS_REASONING   — gpt5 reasoning effort: minimal|low|medium|high (default: high)
 #   CONSENSUS_GPT5_MODEL  — override OpenAI model (default: gpt-5.5; use gpt-5.5-pro for max depth, +30-60s)
+#   CONSENSUS_GEMINI_MODEL — override Gemini model id (Google direct: gemini-2.5-pro; OpenRouter: google/gemini-3.1-pro-preview)
 
 set -uo pipefail
 
@@ -33,7 +35,10 @@ MAX_TOKENS="${CONSENSUS_MAX_TOKENS:-16000}"
 REASONING_EFFORT="${CONSENSUS_REASONING:-high}"
 
 GPT5_MODEL="${CONSENSUS_GPT5_MODEL:-gpt-5.5}"
-GEMINI_MODEL="google/gemini-3.1-pro-preview"
+# Default Gemini model depends on routing: direct Google AI uses bare model name,
+# OpenRouter uses "google/..." prefix. Set CONSENSUS_GEMINI_MODEL to override.
+GEMINI_MODEL_GOOGLE="${CONSENSUS_GEMINI_MODEL:-gemini-2.5-pro}"
+GEMINI_MODEL_OPENROUTER="${CONSENSUS_GEMINI_MODEL:-google/gemini-3.1-pro-preview}"
 KIMI_MODEL="kimi-k2.6"
 
 mkdir -p "$OUT_DIR"
@@ -255,8 +260,69 @@ except Exception as e:
   echo "$rc" > "$TMP_DIR/${label}.rc"
 }
 
+run_gemini_google_direct() {
+  local label="gemini"
+  local out="$TMP_DIR/${label}.md"
+
+  local payload
+  payload=$(MT="$MAX_TOKENS" python3 -c "
+import json, os, sys
+prompt = sys.stdin.read()
+print(json.dumps({
+    'contents': [{'parts': [{'text': prompt}]}],
+    'generationConfig': {
+        'temperature': 0.3,
+        'maxOutputTokens': int(os.environ['MT']),
+    },
+}))
+" <<< "$PROMPT")
+
+  local response
+  response=$(curl -s --max-time 600 -X POST \
+    "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL_GOOGLE}:generateContent?key=${GEMINI_API_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$payload" 2>&1)
+
+  local content
+  content=$(echo "$response" | python3 -c "
+import json, sys
+try:
+    data = json.loads(sys.stdin.read())
+    if 'error' in data and data['error']:
+        err = data['error']
+        msg = err.get('message', 'unknown') if isinstance(err, dict) else str(err)
+        print('ERROR:', msg)
+        sys.exit(1)
+    cands = data.get('candidates', [])
+    if not cands:
+        print('ERROR: no candidates in response')
+        sys.exit(1)
+    parts = cands[0].get('content', {}).get('parts', [])
+    text = '\n'.join(p.get('text','') for p in parts if p.get('text'))
+    if not text:
+        print('ERROR: empty content')
+        sys.exit(1)
+    print(text)
+except Exception as e:
+    print('ERROR:', e)
+    sys.exit(1)
+" 2>&1)
+
+  local rc=$?
+  echo "$content" > "$out"
+  echo "$rc" > "$TMP_DIR/${label}.rc"
+}
+
 run_gemini() {
-  run_openrouter_model "$GEMINI_MODEL" "gemini"
+  # Prefer direct Google AI Studio (your GEMINI_API_KEY) over OpenRouter
+  if [ -n "${GEMINI_API_KEY:-}" ]; then
+    run_gemini_google_direct
+  elif [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    run_openrouter_model "$GEMINI_MODEL_OPENROUTER" "gemini"
+  else
+    echo "SKIPPED: neither GEMINI_API_KEY nor OPENROUTER_API_KEY set" > "$TMP_DIR/gemini.md"
+    echo "1" > "$TMP_DIR/gemini.rc"
+  fi
 }
 
 run_kimi() {

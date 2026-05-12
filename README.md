@@ -14,7 +14,7 @@ Use it when:
 | Model | Provider | Why it's in the panel |
 |-------|----------|-----------------------|
 | **GPT-5.5** | OpenAI (`/v1/responses`) | Deep reasoning, strict on architecture (set `CONSENSUS_GPT5_MODEL=gpt-5.5-pro` for max depth — costs ~30-60s extra latency) |
-| **Gemini 3.1 Pro** | OpenRouter | Different training distribution, catches cross-platform / runtime / timezone bugs |
+| **Gemini 2.5 Pro** | Google AI Studio (direct, preferred) — falls back to OpenRouter | Different training distribution, catches cross-platform / runtime / timezone bugs |
 | **Kimi K2.6** | Moonshot direct | Non-US training lineage, long-horizon reasoning, strong on agentic flows |
 
 You can run a subset (e.g. just GPT-5.5 + Gemini) with `--models gpt5,gemini`.
@@ -48,15 +48,19 @@ cp SKILL.md ~/.claude/skills/consensus-review/
 Set whichever you have. Missing keys cause the corresponding model to be skipped (the script still runs the others).
 
 ```bash
-export OPENAI_API_KEY=sk-...
-export OPENROUTER_API_KEY=sk-or-...
-export MOONSHOT_API_KEY=sk-...
+export OPENAI_API_KEY=sk-...         # for gpt-5.5
+export GEMINI_API_KEY=AIza...        # for Gemini (direct Google AI Studio — preferred, cheaper, lower latency)
+export OPENROUTER_API_KEY=sk-or-...  # optional: Gemini fallback if GEMINI_API_KEY is unset
+export MOONSHOT_API_KEY=sk-...       # for Kimi K2.6
 ```
 
 Get keys:
 - OpenAI: https://platform.openai.com/api-keys
-- OpenRouter: https://openrouter.ai/keys
+- Google AI Studio (Gemini direct): https://aistudio.google.com/app/apikey
+- OpenRouter (Gemini fallback only): https://openrouter.ai/keys
 - Moonshot (Kimi): https://platform.moonshot.ai/console/api-keys
+
+The Gemini route auto-prefers direct Google AI Studio when `GEMINI_API_KEY` is set. If not, it falls back to OpenRouter. If neither is set, Gemini is skipped and the other two models still run.
 
 > Note: `gpt-5.5` requires an OpenAI org with access to the GPT-5.5 family. If your org isn't on that tier you'll see `insufficient_quota` errors. Swap to another model via `CONSENSUS_GPT5_MODEL=<model-id>` or run a subset with `--models gemini,kimi`.
 
@@ -81,6 +85,7 @@ Optional env knobs:
 | `CONSENSUS_MAX_TOKENS` | `16000` | Per-model token budget |
 | `CONSENSUS_REASONING` | `high` | GPT-5 reasoning effort (`minimal`/`low`/`medium`/`high`) — drop to `medium` if you want to shave ~20-60s |
 | `CONSENSUS_GPT5_MODEL` | `gpt-5.5` | OpenAI model id — use `gpt-5.5-pro` for max depth (+30-60s latency) |
+| `CONSENSUS_GEMINI_MODEL` | `gemini-2.5-pro` (Google direct) / `google/gemini-3.1-pro-preview` (OpenRouter) | Override Gemini model id |
 
 ## What does it cost?
 
