@@ -146,6 +146,22 @@ print(tmpl.replace("__TOPIC__", os.environ["TOPIC_ENV"]).replace("__BODY__", os.
 
 # --- Per-model runners ---
 
+# Helper: did the last call fail? (non-zero rc OR content starts with ERROR/SKIPPED)
+_call_failed() {
+  local label="$1"
+  local rc=$(cat "$TMP_DIR/${label}.rc" 2>/dev/null || echo "1")
+  local content=$(cat "$TMP_DIR/${label}.md" 2>/dev/null || echo "")
+  if [ "$rc" != "0" ]; then return 0; fi
+  case "$content" in
+    ERROR:*|SKIPPED:*) return 0 ;;
+    *) [ -z "$(echo "$content" | tr -d '[:space:]')" ] && return 0 || return 1 ;;
+  esac
+}
+
+# OpenRouter fallback model ids (override via env)
+OR_FALLBACK_GPT5="${OR_FALLBACK_GPT5:-openai/gpt-5}"
+OR_FALLBACK_KIMI="${OR_FALLBACK_KIMI:-moonshotai/kimi-k2-0905}"
+
 run_gpt5() {
   local label="gpt5"
   local out="$TMP_DIR/${label}.md"
@@ -203,6 +219,24 @@ except Exception as e:
   local rc=$?
   echo "$content" > "$out"
   echo "$rc" > "$TMP_DIR/${label}.rc"
+
+  # Fallback to OpenRouter if primary OpenAI call failed and OPENROUTER_API_KEY is set
+  if _call_failed "$label" && [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    local primary_err=$(head -3 "$out" 2>/dev/null)
+    run_openrouter_model "$OR_FALLBACK_GPT5" "$label"
+    if _call_failed "$label"; then
+      {
+        echo "PRIMARY (OpenAI) FAILED:"
+        echo "$primary_err"
+        echo ""
+        echo "FALLBACK (OpenRouter $OR_FALLBACK_GPT5) ALSO FAILED:"
+        cat "$out"
+      } > "$out.merged" && mv "$out.merged" "$out"
+    else
+      sed -i '' '1s|^|*(routed via OpenRouter fallback — primary OpenAI errored)*\n\n|' "$out" 2>/dev/null || \
+      { echo "*(routed via OpenRouter fallback — primary OpenAI errored)*"; echo ""; cat "$out"; } > "$out.tmp" && mv "$out.tmp" "$out"
+    fi
+  fi
 }
 
 run_openrouter_model() {
@@ -317,6 +351,7 @@ run_gemini() {
   # Prefer direct Google AI Studio (your GEMINI_API_KEY) over OpenRouter
   if [ -n "${GEMINI_API_KEY:-}" ]; then
     run_gemini_google_direct
+    _wrap_gemini_with_fallback
   elif [ -n "${OPENROUTER_API_KEY:-}" ]; then
     run_openrouter_model "$GEMINI_MODEL_OPENROUTER" "gemini"
   else
@@ -376,6 +411,44 @@ except Exception as e:
   local rc=$?
   echo "$content" > "$out"
   echo "$rc" > "$TMP_DIR/${label}.rc"
+
+  # Fallback to OpenRouter if Moonshot failed and OPENROUTER_API_KEY is set
+  if _call_failed "$label" && [ -n "${OPENROUTER_API_KEY:-}" ]; then
+    local primary_err=$(head -3 "$out" 2>/dev/null)
+    run_openrouter_model "$OR_FALLBACK_KIMI" "$label"
+    if _call_failed "$label"; then
+      {
+        echo "PRIMARY (Moonshot) FAILED:"
+        echo "$primary_err"
+        echo ""
+        echo "FALLBACK (OpenRouter $OR_FALLBACK_KIMI) ALSO FAILED:"
+        cat "$out"
+      } > "$out.merged" && mv "$out.merged" "$out"
+    else
+      { echo "*(routed via OpenRouter fallback — Moonshot errored)*"; echo ""; cat "$out"; } > "$out.tmp" && mv "$out.tmp" "$out"
+    fi
+  fi
+}
+
+# Apply same fallback chain to Gemini Google-direct path
+_wrap_gemini_with_fallback() {
+  if _call_failed "gemini" && [ -n "${OPENROUTER_API_KEY:-}" ] && [ -n "${GEMINI_API_KEY:-}" ]; then
+    # Only fall back if Google-direct was actually tried (GEMINI_API_KEY set) and failed.
+    # If user has no GEMINI_API_KEY, run_gemini already went to OpenRouter directly — no fallback needed.
+    local primary_err=$(head -3 "$TMP_DIR/gemini.md" 2>/dev/null)
+    run_openrouter_model "$GEMINI_MODEL_OPENROUTER" "gemini"
+    if _call_failed "gemini"; then
+      {
+        echo "PRIMARY (Google AI direct) FAILED:"
+        echo "$primary_err"
+        echo ""
+        echo "FALLBACK (OpenRouter) ALSO FAILED:"
+        cat "$TMP_DIR/gemini.md"
+      } > "$TMP_DIR/gemini.md.merged" && mv "$TMP_DIR/gemini.md.merged" "$TMP_DIR/gemini.md"
+    else
+      { echo "*(routed via OpenRouter fallback — Google AI errored)*"; echo ""; cat "$TMP_DIR/gemini.md"; } > "$TMP_DIR/gemini.md.tmp" && mv "$TMP_DIR/gemini.md.tmp" "$TMP_DIR/gemini.md"
+    fi
+  fi
 }
 
 # --- Kick off selected models in parallel ---
