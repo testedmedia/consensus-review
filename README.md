@@ -79,7 +79,7 @@ Optional env knobs:
 |---------|---------|--------------|
 | `CONSENSUS_OUT_DIR` | `./consensus-reviews` | Where reports are written |
 | `CONSENSUS_MAX_TOKENS` | `16000` | Per-model token budget |
-| `CONSENSUS_REASONING` | `medium` | GPT-5 reasoning effort (`minimal`/`low`/`medium`/`high`) — bump to `high` for deeper critique, costs latency |
+| `CONSENSUS_REASONING` | `high` | GPT-5 reasoning effort (`minimal`/`low`/`medium`/`high`) — drop to `medium` if you want to shave ~20-60s |
 | `CONSENSUS_GPT5_MODEL` | `gpt-5.5` | OpenAI model id — use `gpt-5.5-pro` for max depth (+30-60s latency) |
 
 ## Output

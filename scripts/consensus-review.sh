@@ -22,7 +22,7 @@
 # Optional env vars:
 #   CONSENSUS_OUT_DIR     — where reports land (default: ./consensus-reviews)
 #   CONSENSUS_MAX_TOKENS  — per-model token budget (default: 16000)
-#   CONSENSUS_REASONING   — gpt5 reasoning effort: minimal|low|medium|high (default: medium)
+#   CONSENSUS_REASONING   — gpt5 reasoning effort: minimal|low|medium|high (default: high)
 #   CONSENSUS_GPT5_MODEL  — override OpenAI model (default: gpt-5.5; use gpt-5.5-pro for max depth, +30-60s)
 
 set -uo pipefail
@@ -30,7 +30,7 @@ set -uo pipefail
 # --- Config ---
 OUT_DIR="${CONSENSUS_OUT_DIR:-$PWD/consensus-reviews}"
 MAX_TOKENS="${CONSENSUS_MAX_TOKENS:-16000}"
-REASONING_EFFORT="${CONSENSUS_REASONING:-medium}"
+REASONING_EFFORT="${CONSENSUS_REASONING:-high}"
 
 GPT5_MODEL="${CONSENSUS_GPT5_MODEL:-gpt-5.5}"
 GEMINI_MODEL="google/gemini-3.1-pro-preview"
