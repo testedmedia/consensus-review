@@ -82,6 +82,34 @@ Optional env knobs:
 | `CONSENSUS_REASONING` | `high` | GPT-5 reasoning effort (`minimal`/`low`/`medium`/`high`) — drop to `medium` if you want to shave ~20-60s |
 | `CONSENSUS_GPT5_MODEL` | `gpt-5.5` | OpenAI model id — use `gpt-5.5-pro` for max depth (+30-60s latency) |
 
+## What does it cost?
+
+Per-run estimate (all 3 models, defaults: `gpt-5.5` + `reasoning=high`, 16K token budget per model):
+
+| Proposal size | Typical cost per run | Notes |
+|---|---|---|
+| Small (< 2KB body, e.g. a paragraph) | **$0.10 – $0.25** | Short prompts, models output ~3-5K tokens each |
+| Medium (2-10KB body, e.g. a design doc snippet) | **$0.25 – $0.60** | Most reviews land here |
+| Large (10-40KB body, e.g. full PR diff or migration plan) | **$0.60 – $1.50** | Models burn full output budgets |
+| Huge (40KB+ body, e.g. entire RFC) | **$1.50 – $4.00** | Watch your input-token bill |
+
+Breakdown per provider (medium-size review):
+
+- **GPT-5.5** (`reasoning=high`): ~$0.10-0.30 (the most expensive leg — reasoning tokens are billed as output)
+- **Gemini 3.1 Pro** (via OpenRouter): ~$0.08-0.20
+- **Kimi K2.6** (Moonshot): ~$0.02-0.05 (significantly cheaper)
+
+**Knobs that change the cost:**
+
+| Action | Cost impact |
+|---|---|
+| `CONSENSUS_GPT5_MODEL=gpt-5.5-pro` | ~5-10× the GPT slot (deep reasoning, big jump) |
+| `CONSENSUS_REASONING=medium` | ~30-50% cheaper GPT slot |
+| `--models gemini,kimi` (skip GPT) | ~70-80% cheaper overall |
+| `CONSENSUS_MAX_TOKENS=8000` (half budget) | ~40% cheaper but may truncate long responses |
+
+Prices are approximations based on late-2026 provider rates. Check the live pricing pages for exact numbers: [OpenAI](https://openai.com/api/pricing), [OpenRouter](https://openrouter.ai/models), [Moonshot](https://platform.moonshot.ai/docs/pricing).
+
 ## Output
 
 A markdown report at `$CONSENSUS_OUT_DIR/YYYY-MM-DD_<slug>.md`:
