@@ -2,7 +2,7 @@
 name: consensus-review
 description: >
   Adversarial multi-model review of a plan, decision, output, or piece of work.
-  Routes the same prompt through GPT-5.5-pro, Gemini 3.1 Pro, and Kimi K2.6
+  Routes the same prompt through GPT-5.5, Gemini 3.1 Pro, and Kimi K2.6
   with instructions to ATTACK the points, find weaknesses, and propose
   improvements. The orchestrator then synthesizes the attacks into a ranked
   punch list.
@@ -32,7 +32,7 @@ Trigger on phrases like:
 
 | Model | Via | Role |
 |-------|-----|------|
-| **GPT-5.5-pro** | Direct OpenAI Responses API | Deep reasoning, strict on architecture |
+| **GPT-5.5** | Direct OpenAI Responses API | Deep reasoning, strict on architecture (set `CONSENSUS_GPT5_MODEL=gpt-5.5-pro` for max depth) |
 | **Gemini 3.1 Pro** | OpenRouter (`google/gemini-3.1-pro-preview`) | Different training, different blind spots |
 | **Kimi K2.6** | Moonshot direct (`kimi-k2.6` @ `api.moonshot.ai`) | Long-horizon reasoning, different lineage |
 
