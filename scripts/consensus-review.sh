@@ -34,10 +34,10 @@ OUT_DIR="${CONSENSUS_OUT_DIR:-$PWD/consensus-reviews}"
 MAX_TOKENS="${CONSENSUS_MAX_TOKENS:-16000}"
 REASONING_EFFORT="${CONSENSUS_REASONING:-high}"
 
-GPT5_MODEL="${CONSENSUS_GPT5_MODEL:-gpt-5.5}"
+GPT5_MODEL="${CONSENSUS_GPT5_MODEL:-gpt-5.5-pro}"
 # Default Gemini model depends on routing: direct Google AI uses bare model name,
 # OpenRouter uses "google/..." prefix. Set CONSENSUS_GEMINI_MODEL to override.
-GEMINI_MODEL_GOOGLE="${CONSENSUS_GEMINI_MODEL:-gemini-2.5-pro}"
+GEMINI_MODEL_GOOGLE="${CONSENSUS_GEMINI_MODEL:-gemini-3.1-pro-preview}"
 GEMINI_MODEL_OPENROUTER="${CONSENSUS_GEMINI_MODEL:-google/gemini-3.1-pro-preview}"
 KIMI_MODEL="kimi-k2.6"
 
