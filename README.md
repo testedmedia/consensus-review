@@ -13,9 +13,9 @@ Use it when:
 
 | Model | Provider | Why it's in the panel |
 |-------|----------|-----------------------|
-| **GPT-5.5** | OpenAI (`/v1/responses`) | Deep reasoning, strict on architecture (set `CONSENSUS_GPT5_MODEL=gpt-5.5-pro` for max depth — costs ~30-60s extra latency) |
-| **Gemini 2.5 Pro** | Google AI Studio (direct, preferred) — falls back to OpenRouter | Different training distribution, catches cross-platform / runtime / timezone bugs |
-| **Kimi K2.6** | Moonshot direct | Non-US training lineage, long-horizon reasoning, strong on agentic flows |
+| **GPT-5.5-pro** | OpenAI (`/v1/responses`) | Deepest reasoning model OpenAI ships (override with `CONSENSUS_GPT5_MODEL=gpt-5.5` for ~30-60s less latency) |
+| **Gemini 3.1 Pro Preview** | Google AI Studio (direct, preferred) — falls back to OpenRouter | Different training distribution, catches cross-platform / runtime / timezone bugs |
+| **Kimi K2.6** | Moonshot direct — falls back to OpenRouter | Non-US training lineage, long-horizon reasoning, strong on agentic flows |
 
 You can run a subset (e.g. just GPT-5.5 + Gemini) with `--models gpt5,gemini`.
 
@@ -84,12 +84,12 @@ Optional env knobs:
 | `CONSENSUS_OUT_DIR` | `./consensus-reviews` | Where reports are written |
 | `CONSENSUS_MAX_TOKENS` | `16000` | Per-model token budget |
 | `CONSENSUS_REASONING` | `high` | GPT-5 reasoning effort (`minimal`/`low`/`medium`/`high`) — drop to `medium` if you want to shave ~20-60s |
-| `CONSENSUS_GPT5_MODEL` | `gpt-5.5` | OpenAI model id — use `gpt-5.5-pro` for max depth (+30-60s latency) |
-| `CONSENSUS_GEMINI_MODEL` | `gemini-2.5-pro` (Google direct) / `google/gemini-3.1-pro-preview` (OpenRouter) | Override Gemini model id |
+| `CONSENSUS_GPT5_MODEL` | `gpt-5.5-pro` | OpenAI model id — drop to `gpt-5.5` for ~30-60s less latency |
+| `CONSENSUS_GEMINI_MODEL` | `gemini-3.1-pro-preview` | Override Gemini model id (same id works on Google direct or OpenRouter) |
 
 ## What does it cost?
 
-Per-run estimate (all 3 models, defaults: `gpt-5.5` + `reasoning=high`, 16K token budget per model):
+Per-run estimate (all 3 models, defaults: `gpt-5.5-pro` + `reasoning=high`, 16K token budget per model). Note: `gpt-5.5-pro` is ~3-5× more expensive than `gpt-5.5` — drop to plain `gpt-5.5` via `CONSENSUS_GPT5_MODEL=gpt-5.5` if cost matters more than depth.
 
 | Proposal size | Typical cost per run | Notes |
 |---|---|---|
