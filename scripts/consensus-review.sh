@@ -85,10 +85,23 @@ if [ -z "$TOPIC" ] || [ -z "$BODY" ]; then
   exit 2
 fi
 
-# --- Slug + output paths ---
+# --- Input size guard (warn on big inputs before burning $$$) ---
+# Rough token estimate: 1 token ≈ 4 chars
+body_chars=${#BODY}
+approx_tokens=$((body_chars / 4))
+if [ "$approx_tokens" -gt 50000 ]; then
+  echo "WARNING: input body is ~${approx_tokens} tokens. With 3 models @ 16K output budget" >&2
+  echo "  this run could cost ~\$3-8 USD. Press Ctrl+C to abort, or wait 5s to continue." >&2
+  sleep 5
+fi
+
+# --- Slug + output paths (slug is already sanitized to [a-z0-9-] via sed) ---
+# Add nanosecond suffix to prevent same-slug-same-day overwrite
 slug=$(echo "$TOPIC" | tr '[:upper:]' '[:lower:]' \
   | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-+|-+$//g' \
   | cut -c1-60)
+# Empty-slug guard (e.g. topic was all punctuation)
+if [ -z "$slug" ]; then slug="untitled-$(date +%s)"; fi
 today=$(date '+%Y-%m-%d')
 REPORT="$OUT_DIR/${today}_${slug}.md"
 TMP_DIR=$(mktemp -d -t consensus-review.XXXXXX)
@@ -538,3 +551,24 @@ done)
 Open the full report:
   cat "$REPORT"
 EOF
+
+# --- Fail-loud: count models that produced valid (non-error) output ---
+success_count=0
+for m in "${MODEL_LIST[@]}"; do
+  if ! _call_failed "$m"; then
+    success_count=$((success_count + 1))
+  fi
+done
+
+if [ "$success_count" -eq 0 ]; then
+  echo "" >&2
+  echo "!!! ZERO MODELS PRODUCED VALID OUTPUT — this is not a consensus review !!!" >&2
+  echo "Check API keys, network, or provider status. Report file written but is empty." >&2
+  exit 3
+elif [ "$success_count" -eq 1 ] && [ ${#MODEL_LIST[@]} -gt 1 ]; then
+  echo "" >&2
+  echo "!!! WARNING: only 1 of ${#MODEL_LIST[@]} requested models succeeded — this is NOT a consensus." >&2
+  echo "Report is one-model output. Don't ship decisions on it." >&2
+  exit 4
+fi
+
